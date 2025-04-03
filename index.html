@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agentic Chatbot</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/@heroicons/react@2.0.11/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .loading-dots span {
+        animation: blink 1.4s infinite;
+      }
+      .loading-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .loading-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      .blur-effect {
+        backdrop-filter: blur(5px);
+      }
+      .round-icon {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #3b82f6;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .side-panel {
+        transition: all 0.3s ease;
+        transform: translateX(-100%);
+      }
+      .side-panel.open {
+        transform: translateX(0);
+      }
+      ul {
+        list-style-type: disc;
+        padding-left: 20px;
+      }
+      ol {
+        list-style-type: decimal;
+        padding-left: 20px;
+      }
+
+      #chatbot-container {
+          width: 50%; /* Adjust the width as needed */
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background-color: white;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+  </head>
+  <body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="flex w-full max-w-6xl mx-auto">
+      <!-- Side Panel -->
+      <div id="side-panel" class="side-panel w-64 bg-white shadow-lg fixed left-0 top-0 h-full z-10 overflow-y-auto">
+        <div class="p-4 border-b">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">User Details</h2>
+            <button id="close-side-panel" class="text-gray-500 hover:text-gray-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="p-4">
+          <form id="user-details-form">
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">User Name</label>
+              <input type="text" id="user_name" class="w-full p-2 border rounded" value="{{user_name}}" autocomplete="off">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Player Level</label>
+              <input type="number" id="player_level" class="w-full p-2 border rounded" value="{{player_level}}" autocomplete="off">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">OS Version</label>
+              <input type="text" id="os_version" class="w-full p-2 border rounded" value="{{os_version}}" autocomplete="off">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Platform</label>
+              <select id="platform" class="w-full p-2 border rounded">
+                <option value="iOS" {{platform === 'iOS' ? 'selected' : ''}}>iOS</option>
+                <option value="Android" {{platform === 'Android' ? 'selected' : ''}}>Android</option>
+              </select>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Application Version</label>
+              <input type="text" id="application_version" class="w-full p-2 border rounded" value="{{application_version}}" autocomplete="off">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Issue ID</label>
+              <input type="text" id="issue_id" class="w-full p-2 border rounded" value="{{issue_id}}">
+            </div>
+            <div class="mb-4" style="display: none;">
+              <label class="block text-sm font-medium text-gray-700 mb-1">LLM Model</label>
+              <select id="llm_model" class="w-full p-2 border rounded">
+                <option value="GPT 4o">GPT 4o</option>
+                <option value="Gemini 2.5 Pro">Gemini 2.5 Pro</option>
+                <option value="Gemini 2.0 flash">Gemini 2.0 flash</option>
+              </select>
+            </div>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Save Changes</button>
+          </form>
+        </div>
+      </div>
+        
+      <!-- Main Chat Container -->
+      <div id="chatbot-container" class="bg-white rounded-lg shadow-lg w-full relative ml-0">
+        <div
+          id="loading-overlay"
+          class="absolute inset-0 bg-white bg-opacity-75 backdrop-blur-sm flex items-center justify-center hidden"
+        >
+          <div class="loading-dots text-blue-500 text-3xl">
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+          </div>
+        </div>
+
+        <div
+          class="bg-blue-500 text-white p-4 rounded-t-lg flex justify-between items-center"
+        >
+          <div class="flex items-center">
+            <button id="open-side-panel" class="mr-3 text-white hover:text-gray-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <h2 class="text-lg font-semibold">Agentic Chatbot</h2>
+          </div>
+          <button id="minimize-button" class="text-white hover:text-gray-200">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="w-6 h-6"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.5 12h-15"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div
+          id="chatbot-body"
+          style="height: 40rem"
+          class="p-4 h-96 overflow-y-auto"
+        ></div>
+
+        <div class="p-4 border-t flex items-center">
+          <input
+            type="text"
+            id="chatbot-input"
+            placeholder="Type a message..."
+            class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            id="send-button"
+            class="ml-2 p-2 text-blue-500 hover:text-blue-600"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="w-6 h-6"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="chat-icon" class="round-icon hidden">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="w-6 h-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+          />
+        </svg>
+      </div>
+    </div>
+
+    <script>
+      const FASTAPI_URL = "http://127.0.0.1:8080";
+      const WEBSOCKET_URL = "ws://127.0.0.1:8080/ws";
+
+      // DOM Elements
+      const chatbotBody = document.getElementById("chatbot-body");
+      const chatbotInput = document.getElementById("chatbot-input");
+      const sendButton = document.getElementById("send-button");
+      const loadingOverlay = document.getElementById("loading-overlay");
+      const chatbotContainer = document.getElementById("chatbot-container");
+      const minimizeButton = document.getElementById("minimize-button");
+      const chatIcon = document.getElementById("chat-icon");
+      const sidePanel = document.getElementById("side-panel");
+      const openSidePanelBtn = document.getElementById("open-side-panel");
+      const closeSidePanelBtn = document.getElementById("close-side-panel");
+      const userDetailsForm = document.getElementById("user-details-form");
+
+      // User details with default values
+      let userDetails = {
+        user_name: "Chathusha Wijenayake",
+        player_level: 18,
+        os_version: "12",
+        platform: "Android",
+        application_version: "1.0.0",
+        issue_id: "125",
+        llm_model: "GPT 4o"
+      };
+
+      // Initialize form with user details
+      function initializeUserDetails() {
+        document.getElementById('user_name').value = userDetails.user_name;
+        document.getElementById('player_level').value = userDetails.player_level;
+        document.getElementById('os_version').value = userDetails.os_version;
+        document.getElementById('platform').value = userDetails.platform;
+        document.getElementById('application_version').value = userDetails.application_version;
+        document.getElementById('issue_id').value = userDetails.issue_id;
+        document.getElementById('llm_model').value = userDetails.llm_model;
+      }
+
+      // Toggle side panel
+      function openSidePanel() {
+        if (sidePanel.classList.contains('open')) {
+          closeSidePanel();
+        } else {
+          sidePanel.classList.add('open'); 
+        }
+      }
+
+      function closeSidePanel() {
+        sidePanel.classList.remove('open');
+      }
+
+      // Event listeners for side panel
+      openSidePanelBtn.addEventListener('click', openSidePanel);
+      closeSidePanelBtn.addEventListener('click', closeSidePanel);
+      userDetailsForm.addEventListener('submit', saveUserDetails);
+
+      function showLoading() {
+        loadingOverlay.classList.remove("hidden");
+        chatbotContainer.classList.add("blur-effect");
+      }
+
+      function hideLoading() {
+        loadingOverlay.classList.add("hidden");
+        chatbotContainer.classList.remove("blur-effect");
+      }
+
+      function showTypingIndicator() {
+        hideTypingIndicator();
+        const typingElement = document.createElement("div");
+        typingElement.id = "typing-indicator";
+        typingElement.className = "text-left mb-2";
+        typingElement.innerHTML = `
+          <div class="flex items-center justify-start">
+            <img src="https://cdn-icons-png.flaticon.com/128/12882/12882561.png" alt="Agent" class="w-6 h-6 mr-2" />
+            <div class="bg-gray-200 text-blue-600 text-sm rounded-lg p-2 inline-block max-w-[80%]">
+              <span class="loading-dots">
+                <span>A</span><span>g</span><span>e</span><span>n</span><span>t</span><span> </span>
+                <span>T</span><span>h</span><span>i</span><span>n</span><span>k</span><span>i</span><span>n</span><span>g</span><span>.</span><span>.</span><span>.</span>
+              </span>
+            </div>
+          </div>`;
+        chatbotBody.appendChild(typingElement);
+        chatbotBody.scrollTop = chatbotBody.scrollHeight;
+      }
+
+      function hideTypingIndicator() {
+        const oldIndicator = document.getElementById("typing-indicator");
+        if (oldIndicator) {
+          oldIndicator.remove();
+        }
+      }
+
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+      });
+
+      function displayMessage(message, isUser = false) {
+        const messageElement = document.createElement("div");
+        messageElement.className = isUser
+          ? "text-right mb-2"
+          : "text-left mb-2";
+
+        const messageHtml = DOMPurify.sanitize(marked.parse(message), {
+          ALLOWED_TAGS: ["ul", "ol", "li", "p", "strong", "em", "br"],
+        });
+
+        if (isUser) {
+          messageElement.innerHTML = `
+      <div class="flex items-center justify-end">
+        <div class="${
+          isUser
+            ? "bg-blue-500 text-white text-left"
+            : "bg-gray-200 text-gray-800"
+        } rounded-lg p-2 inline-block max-w-[80%]">
+          ${messageHtml}
+        </div>
+        <img src="${
+          isUser
+            ? "https://cdn-icons-png.flaticon.com/128/180/180571.png"
+            : "https://cdn-icons-png.flaticon.com/128/12882/12882561.png"
+        }" alt="${isUser ? "User" : "Chatbot"}" class="w-6 h-6 ml-2" />
+      </div>`;
+        } else {
+          messageElement.innerHTML = `
+      <div class="flex items-center justify-start">
+        <img src="${
+          isUser
+            ? "https://cdn-icons-png.flaticon.com/128/180/180571.png"
+            : "https://cdn-icons-png.flaticon.com/128/12882/12882561.png"
+        }" alt="${isUser ? "User" : "Chatbot"}" class="w-6 h-6 mr-2" />
+        <div class="${
+          isUser
+            ? "bg-blue-500 text-white text-left"
+            : "bg-gray-200 text-gray-800"
+        } rounded-lg p-2 inline-block max-w-[80%]">
+          ${messageHtml}
+        </div>
+      </div>`;
+        }
+
+        chatbotBody.appendChild(messageElement);
+        chatbotBody.scrollTop = chatbotBody.scrollHeight;
+
+        // Disable the Save Details button if any message exists
+        disableSaveDetailsButtonIfChat();
+      }
+
+      function disableSaveDetailsButtonIfChat() {
+          const saveButton = userDetailsForm.querySelector("button[type=submit]");
+          if (chatbotBody.childElementCount > 0) {
+              saveButton.disabled = true;
+              saveButton.className = "bg-gray-300 px-4 py-2 rounded-md cursor-not-allowed opacity-50";
+          }
+      }
+
+      async function fetchInitialQuestion() {
+        showLoading();
+        try {
+          const response = await fetch(`${FASTAPI_URL}/get_question/`);
+          const data = await response.json();
+          if (data.question) {
+            displayMessage(data.question);
+          }
+        } catch (error) {
+          console.error("Error:", error);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      async function sendUserInput(message) {
+        showLoading();
+        try {
+          await fetch(`${FASTAPI_URL}/user_input/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ 
+              response: message,
+              user_details: userDetails 
+            }),
+          });
+        } catch (error) {
+          console.error("Error:", error);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      chatbotInput.addEventListener("keypress", async function (e) {
+        if (e.key === "Enter") {
+          const userMessage = chatbotInput.value.trim();
+          if (userMessage) {
+            chatbotInput.value = "";
+            await sendUserInput(userMessage);
+            showTypingIndicator();
+          }
+        }
+      });
+
+      sendButton.addEventListener("click", async function () {
+        const userMessage = chatbotInput.value.trim();
+        if (userMessage) {
+          chatbotInput.value = "";
+          await sendUserInput(userMessage);
+          showTypingIndicator();
+        }
+      });
+
+      function initializeWebSocket() {
+        showLoading();
+        const websocket = new WebSocket(WEBSOCKET_URL);
+
+        websocket.onmessage = function (event) {
+          const message = event.data;
+
+          if (message.startsWith("User:")) {
+            displayMessage(message.replace("User: ", ""), true);
+          } else if (message === "Agent Thinking...") {
+            showTypingIndicator();
+          } else {
+            hideTypingIndicator();
+            displayMessage(message, false);
+          }
+        };
+
+        websocket.onopen = function () {
+          console.log("WebSocket connection established.");
+          hideLoading();
+        };
+
+        websocket.onerror = function (error) {
+          console.error("WebSocket error:", error);
+          showLoading();
+        };
+
+        websocket.onclose = function () {
+          console.log("WebSocket connection closed.");
+          showLoading();
+          setTimeout(initializeWebSocket, 1000);
+        };
+      }
+
+      function showAlert(message, type = "success") {
+        const alertContainer = document.getElementById("alert-container");
+        const alert = document.createElement("div");
+        alert.className = `px-4 py-2 rounded shadow-lg text-white ${
+            type === "success" ? "bg-green-500" : "bg-red-500"
+        }`;
+        alert.textContent = message;
+
+        alertContainer.appendChild(alert);
+
+        // Remove the alert after 3 seconds
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
+    }
+
+    async function saveUserDetails(e) {
+        e.preventDefault();
+        const saveButton = userDetailsForm.querySelector("button[type=submit]");
+        saveButton.disabled = true;
+        saveButton.classList.add("bg-gray-300", "px-4", "py-2", "rounded-md", "cursor-not-allowed", "opacity-50");
+
+        userDetails = {
+            user_name: document.getElementById("user_name").value,
+            player_level: parseInt(document.getElementById("player_level").value, 10),
+            os_version: document.getElementById("os_version").value,
+            platform: document.getElementById("platform").value,
+            application_version: document.getElementById("application_version").value,
+            issue_id: document.getElementById("issue_id").value,
+            llm_model: document.getElementById("llm_model").value,
+        };
+
+        try {
+            const response = await fetch(`${FASTAPI_URL}/start_chat/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(userDetails),
+            });
+            const result = await response.json();
+            showAlert(result.message, "success");
+            closeSidePanel();
+        } catch (error) {
+            console.error("Error updating user details:", error);
+            showAlert("Failed to update user details and start chat.", "error");
+        } finally {
+            // saveButton.disabled = false;
+            // saveButton.classList.remove("bg-gray-300", "cursor-not-allowed", "opacity-50");
+        }
+    }
+
+      // Toggle chatbot visibility
+      minimizeButton.addEventListener("click", function () {
+        chatbotContainer.classList.add("hidden");
+        chatIcon.classList.remove("hidden");
+      });
+
+      chatIcon.addEventListener("click", function () {
+        chatbotContainer.classList.remove("hidden");
+        chatIcon.classList.add("hidden");
+      });
+      
+
+      // Initialize everything
+      initializeUserDetails();
+      initializeWebSocket();
+      fetchInitialQuestion();
+    </script>
+
+    <!-- Alert Container -->
+    <div id="alert-container" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 space-y-2 z-50"></div>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+crewai
+langchain
+langchain-community
+langchain-core
+langchain_openai
+unstructured
+unstructured[pdf]
+pydantic
+faiss-cpu
+uvicorn
+fastapi
+websockets
+langfuse 
+transformers
+openlit==1.33
+langchain_google_genai
