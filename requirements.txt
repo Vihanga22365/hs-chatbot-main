@@ -14,3 +14,4 @@ langfuse
 transformers
 openlit==1.33
 langchain_google_genai
+langgraph
